@@ -1,10 +1,10 @@
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from . import models, schemas
 from passlib.context import CryptContext
-from fastapi import HTTPException
-import hashlib
+from datetime import datetime
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
@@ -14,11 +14,11 @@ def create_user(db: Session, user_in: schemas.UserCreate):
         raise HTTPException(status_code=400, detail="Invalid password format")
 
     try:
-        hashed = hashlib.sha256(user_in.password.encode("utf-8")).hexdigest()
+        hashed = pwd_context.hash(user_in.password)
     except Exception:
         raise HTTPException(status_code=500, detail="Password hashing failed")
 
-    db_user = models.User(email=user_in.email, hashed_password=hashed)
+    db_user = models.User(email=user_in.email, hashed_password=hashed, created_at=datetime.utcnow())
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -28,12 +28,20 @@ def authenticate_user(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
     if not user:
         return False
-    if not pwd_context.verify(password, user.hashed_password):
+    try:
+        verified = pwd_context.verify(password, user.hashed_password)
+    except Exception:
         return False
-    return user
+    return user if verified else False
 
 def create_task(db: Session, task_in: schemas.TaskCreate, owner_id: int):
-    task = models.Task(title=task_in.title, description=task_in.description, owner_id=owner_id)
+    task = models.Task(
+        title=task_in.title,
+        description=task_in.description,
+        status=getattr(models, "TaskStatus", None).todo if hasattr(models, "TaskStatus") else "todo",
+        due_date=task_in.due_date,
+        owner_id=owner_id
+    )
     db.add(task)
     db.commit()
     db.refresh(task)
