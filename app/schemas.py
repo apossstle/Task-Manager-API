@@ -2,7 +2,7 @@ from typing import Optional
 from datetime import datetime
 
 import pydantic
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr
 
 _PYDANTIC_VER = getattr(pydantic, "__version__", "1.0.0")
 _PYDANTIC_MAJOR = int(_PYDANTIC_VER.split(".")[0])
@@ -15,12 +15,6 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-
-    @validator("password")
-    def password_max_bytes(cls, v: str) -> str:
-        if len(v.encode("utf-8")) > 72:
-            raise ValueError("Password too long (max 72 bytes)")
-        return v
 
 
 if IS_PYDANTIC_V2:
