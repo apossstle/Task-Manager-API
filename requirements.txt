@@ -2,9 +2,9 @@ fastapi
 uvicorn
 sqlalchemy
 pydantic
-passlib[bcrypt]
+passlib[argon2]
+argon2-cffi
 python-jose
 python-multipart
 pydantic[email]
 jinja2
-passlib[argon2]
