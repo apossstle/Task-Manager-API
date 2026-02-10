@@ -3,24 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <title>Task Manager</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    input {
+      padding: 8px;
+      margin: 5px;
+      width: 200px;
+    }
+    button {
+      padding: 8px 15px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    .error {
+      color: red;
+    }
+    .success {
+      color: green;
+    }
+    #tasks li {
+      margin: 10px 0;
+    }
+  </style>
 </head>
 <body>
 
 <h2>Регистрация</h2>
-<input id="reg-email" placeholder="email">
-<input id="reg-pass" placeholder="password">
+<input id="reg-email" type="email" placeholder="email">
+<input id="reg-pass" type="password" placeholder="password">
 <button onclick="register()">Register</button>
+<p id="reg-status"></p>
 
 <h2>Логин</h2>
-<input id="login-email" placeholder="email">
-<input id="login-pass" placeholder="password">
+<input id="login-email" type="email" placeholder="email">
+<input id="login-pass" type="password" placeholder="password">
 <button onclick="login()">Login</button>
+<p id="login-status"></p>
 
-<h2>Задачи</h2>
-<input id="task-title" placeholder="task title">
-<button onclick="createTask()">Add task</button>
-
-<ul id="tasks"></ul>
+<div id="task-section" style="display: none;">
+  <h2>Задачи</h2>
+  <input id="task-title" placeholder="task title">
+  <button onclick="createTask()">Add task</button>
+  <button onclick="logout()">Logout</button>
+  
+  <ul id="tasks"></ul>
+</div>
 
 <script>
 let token = null;
@@ -30,62 +62,138 @@ function el(id) {
 }
 
 async function register() {
-  const res = await fetch("http://127.0.0.1:8000/users/register", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      email: el("reg-email").value,
-      password: el("reg-pass").value
-    })
-  });
-  alert(await res.text());
+  const email = el("reg-email").value;
+  const password = el("reg-pass").value;
+  
+  if (!email || !password) {
+    el("reg-status").innerHTML = '<span class="error">Заполните все поля!</span>';
+    return;
+  }
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/users/register", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, password })
+    });
+
+    if (res.ok) {
+      el("reg-status").innerHTML = '<span class="success">Регистрация успешна! Войдите в систему.</span>';
+      el("reg-email").value = "";
+      el("reg-pass").value = "";
+    } else {
+      const error = await res.json();
+      el("reg-status").innerHTML = `<span class="error">${error.detail}</span>`;
+    }
+  } catch (err) {
+    el("reg-status").innerHTML = '<span class="error">Ошибка сервера</span>';
+  }
 }
 
 async function login() {
-  const res = await fetch("http://127.0.0.1:8000/users/login", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      email: el("login-email").value,
-      password: el("login-pass").value
-    })
-  });
+  const email = el("login-email").value;
+  const password = el("login-pass").value;
+  
+  if (!email || !password) {
+    el("login-status").innerHTML = '<span class="error">Заполните все поля!</span>';
+    return;
+  }
 
-  const data = await res.json();
-  token = data.access_token;
-  loadTasks();
+  try {
+    const formData = new FormData();
+    formData.append('username', email); 
+    formData.append('password', password);
+
+    const res = await fetch("http://127.0.0.1:8000/users/login", {
+      method: "POST",
+      body: formData
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      token = data.access_token;
+      el("login-status").innerHTML = '<span class="success">Вход выполнен!</span>';
+      el("login-email").value = "";
+      el("login-pass").value = "";
+      el("task-section").style.display = "block";
+      loadTasks();
+    } else {
+      const error = await res.json();
+      el("login-status").innerHTML = `<span class="error">${error.detail}</span>`;
+    }
+  } catch (err) {
+    el("login-status").innerHTML = '<span class="error">Ошибка сервера</span>';
+  }
 }
 
 async function loadTasks() {
-  const res = await fetch("http://127.0.0.1:8000/tasks", {
-    headers: {
-      "Authorization": "Bearer " + token
+  if (!token) return;
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/tasks", {
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    });
+
+    if (res.ok) {
+      const tasks = await res.json();
+      const ul = el("tasks");
+      ul.innerHTML = "";
+
+      if (tasks.length === 0) {
+        ul.innerHTML = "<li>Нет задач. Добавьте первую!</li>";
+      } else {
+        tasks.forEach(t => {
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>${t.title}</strong> - ${t.status}`;
+          ul.appendChild(li);
+        });
+      }
     }
-  });
-
-  const tasks = await res.json();
-  const ul = el("tasks");
-  ul.innerHTML = "";
-
-  tasks.forEach(t => {
-    const li = document.createElement("li");
-    li.innerText = t.title;
-    ul.appendChild(li);
-  });
+  } catch (err) {
+    console.error("Ошибка загрузки задач:", err);
+  }
 }
 
 async function createTask() {
-  await fetch("http://127.0.0.1:8000/tasks", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + token
-    },
-    body: JSON.stringify({
-      title: el("task-title").value
-    })
-  });
-  loadTasks();
+  if (!token) {
+    alert("Сначала войдите в систему!");
+    return;
+  }
+
+  const title = el("task-title").value;
+  if (!title) {
+    alert("Введите название задачи!");
+    return;
+  }
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/tasks", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify({ title })
+    });
+
+    if (res.ok) {
+      el("task-title").value = "";
+      loadTasks();
+    } else {
+      alert("Ошибка создания задачи");
+    }
+  } catch (err) {
+    alert("Ошибка сервера");
+  }
+}
+
+function logout() {
+  token = null;
+  el("task-section").style.display = "none";
+  el("tasks").innerHTML = "";
+  el("login-status").innerHTML = "";
 }
 </script>
 
