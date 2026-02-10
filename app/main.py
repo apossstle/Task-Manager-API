@@ -2,23 +2,33 @@ from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from pathlib import Path
 import uvicorn
 
 from . import models, schemas, crud, database, auth
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 models.Base.metadata.create_all(bind=database.engine)
 
 BASE_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates = Jinja2Templates(directory=str(BASE_DIR / "frontend"))
 
-@app.get("/register", response_class=HTMLResponse)
-def register_page(request: Request):
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request):
     return templates.TemplateResponse(
-        "register.html",
+        "index.html",
         {"request": request}
     )
 
