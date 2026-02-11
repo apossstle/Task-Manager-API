@@ -2,7 +2,7 @@ from typing import Optional
 from datetime import datetime
 import pydantic
 from pydantic import BaseModel, EmailStr
-#import ///
+
 _PYDANTIC_VER = getattr(pydantic, "__version__", "1.0.0")
 _PYDANTIC_MAJOR = int(_PYDANTIC_VER.split(".")[0])
 IS_PYDANTIC_V2 = _PYDANTIC_MAJOR >= 2
