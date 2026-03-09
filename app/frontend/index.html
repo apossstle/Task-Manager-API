@@ -229,7 +229,6 @@ async function register() {
   }
 }
 
-// Если уже залогинен — редирект
 if (localStorage.getItem('token')) window.location.href = '/tasks-page';
 
 el('btn-login').addEventListener('click', login);
