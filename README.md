@@ -2,7 +2,7 @@
 
 REST API для управления задачами с JWT-авторизацией, SQLite и полным фронтендом на TypeScript.
 
-## Быстрый старт
+## Запуск
 
 ```bash
 pip install -r requirements.txt
